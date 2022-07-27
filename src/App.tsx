@@ -1,15 +1,15 @@
 import {Col, Container, Row} from "react-bootstrap";
 import 'bootstrap/dist/css/bootstrap.min.css';
 import MainForm from "./components/MainForm";
-import StoreContextProvideer from "./StoreContextProvider";
+import StoreContextProvider from "./contexts/StoreContextProvider";
 
 const App = () => {
     return (
-        <StoreContextProvideer>
+        <StoreContextProvider>
             <div className="p-5">
-                <h1>Dough calculator</h1>
-
                 <Container>
+                    <h1>Dough calculator</h1>
+
                     <Row>
                         <Col>
                             <MainForm></MainForm>
@@ -18,7 +18,7 @@ const App = () => {
 
                 </Container>
             </div>
-        </StoreContextProvideer>
+        </StoreContextProvider>
     )
 }
 
