@@ -3,14 +3,15 @@ import React from "react";
 export interface AppStateInterface {
     hydration: number,
     flourWeight: number,
-    waterWeight: number
+    waterWeight: number,
+    totalDoughWeight: number
 }
 
 export enum ActionType {
     ChangeHydration,
     ChangeFlourWeight,
     ChangeWaterWeight,
-    ChangeTotalDoughWeigh
+    ChangeTotalDoughWeight
 }
 
 export interface ChangeHydrationActionInterface {
@@ -27,7 +28,7 @@ export interface ChangeWaterWeightActionInterface {
     payload: number
 }
 export interface ChangeTotalDoughWeighActionInterface {
-    type: ActionType.ChangeTotalDoughWeigh
+    type: ActionType.ChangeTotalDoughWeight
     payload: number
 }
 

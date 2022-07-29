@@ -16,7 +16,7 @@ const Hydration = () => {
 
     return (
         <Form.Group className={"col-sm-3 py-2"}>
-            <Form.Label>Hydration %</Form.Label>
+            <Form.Label>Hydration (%)</Form.Label>
             <Form.Control type="text" value={state.hydration} onChange={handleHydrationChange}></Form.Control>
         </Form.Group>
     )
