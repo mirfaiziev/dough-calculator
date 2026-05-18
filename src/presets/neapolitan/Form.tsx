@@ -4,17 +4,14 @@ import { NeapolitanContext } from "./context";
 import reducer from "./reducer";
 import defaults from "./defaults";
 import { derive } from "./calc";
-import Hydration from "./fields/Hydration";
-import FlourWeight from "./fields/FlourWeight";
-import WaterWeight from "./fields/WaterWeight";
-import TotalDoughWeight from "./fields/TotalDoughWeight";
-import BallWeight from "./fields/BallWeight";
-import Servings from "./fields/Servings";
-import SaltPercent from "./fields/SaltPercent";
-import SaltWeight from "./fields/SaltWeight";
+import { ActionType, NeapolitanAction } from "./types";
+import NumberField from "./fields/NumberField";
 import PoolishToggle from "./fields/PoolishToggle";
-import PoolishMass from "./fields/PoolishMass";
-import PoolishHydration from "./fields/PoolishHydration";
+
+const pair = "col-6 col-sm-3 py-2";
+
+const dispatcher = (dispatch: (a: NeapolitanAction) => void, type: NeapolitanAction["type"]) =>
+    (payload: number) => dispatch({ type, payload } as NeapolitanAction);
 
 const NeapolitanForm = () => {
     const [state, dispatch] = useReducer(reducer, defaults);
@@ -23,26 +20,69 @@ const NeapolitanForm = () => {
     return (
         <NeapolitanContext.Provider value={{ view, dispatch }}>
             <BsForm className="py-4">
-                    <Hydration />
-                    <PoolishToggle />
-                    {view.poolishOn && (
+                <NumberField
+                    label="Hydration (%)"
+                    value={view.hydration}
+                    onChange={dispatcher(dispatch, ActionType.ChangeHydration)}
+                />
+                <PoolishToggle />
+                {view.poolishOn && (
                     <Row>
-                        <PoolishMass />
-                        <PoolishHydration />
+                        <NumberField
+                            className={pair}
+                            label="Weight (g)"
+                            value={view.poolishMass}
+                            onChange={dispatcher(dispatch, ActionType.ChangePoolishMass)}
+                        />
+                        <NumberField
+                            className={pair}
+                            label="Hydration (%)"
+                            value={view.poolishHydration}
+                            onChange={dispatcher(dispatch, ActionType.ChangePoolishHydration)}
+                        />
                     </Row>
                 )}
-                    <FlourWeight />
-                    <WaterWeight />
-                    <Row>
-                        <SaltPercent />
-                        <SaltWeight />
-                    </Row>
-
-
-                <TotalDoughWeight />
-                <BallWeight />
-                <Servings />
-
+                <NumberField
+                    label="Fresh flour (g)"
+                    value={view.flour}
+                    onChange={dispatcher(dispatch, ActionType.ChangeFlour)}
+                />
+                <NumberField
+                    label="Fresh water (g)"
+                    value={view.water}
+                    onChange={dispatcher(dispatch, ActionType.ChangeWater)}
+                />
+                <Row>
+                    <NumberField
+                        className={pair}
+                        label="Salt (% of flour)"
+                        value={view.saltPercent}
+                        decimals={2}
+                        onChange={dispatcher(dispatch, ActionType.ChangeSaltPercent)}
+                    />
+                    <NumberField
+                        className={pair}
+                        label="Salt Weight (g)"
+                        value={view.saltWeight}
+                        decimals={1}
+                    />
+                </Row>
+                <NumberField
+                    label="Total Dough Weight (g)"
+                    value={view.total}
+                    onChange={dispatcher(dispatch, ActionType.ChangeTotal)}
+                />
+                <NumberField
+                    label="Ball Weight (g)"
+                    value={view.ballWeight}
+                    onChange={dispatcher(dispatch, ActionType.ChangeBallWeight)}
+                />
+                <NumberField
+                    label="Servings"
+                    value={view.servings}
+                    decimals={1}
+                    onChange={dispatcher(dispatch, ActionType.ChangeServings)}
+                />
             </BsForm>
         </NeapolitanContext.Provider>
     );

@@ -66,17 +66,8 @@ src/
       Form.tsx               Root form, useReducer + Provider, conditional poolish row
       fields/
         parseNum.ts          Shared input parser / formatter
-        Hydration.tsx        % overall target
-        FlourWeight.tsx      Fresh flour to add (= totalFlour − poolishFlour)
-        WaterWeight.tsx      Fresh water to add (= totalWater − poolishWater)
-        TotalDoughWeight.tsx Total dough (incl. poolish)
-        BallWeight.tsx       Per-ball weight (independent)
-        Servings.tsx         total / ballWeight, rounded to 0.1, editable
-        SaltPercent.tsx      Editable % of total flour
-        SaltWeight.tsx       Read-only, derived
-        PoolishToggle.tsx    Switch — defaults on
-        PoolishMass.tsx      g, shown when toggle on
-        PoolishHydration.tsx %, shown when toggle on
+        NumberField.tsx      Generic prop-driven number input; omit onChange → read-only
+        PoolishToggle.tsx    Bootstrap Form.Check switch (different UI from NumberField)
       index.ts               Preset export: { id, label, Form }
 public/
   favicons                   (served as-is, copied to dist/)
