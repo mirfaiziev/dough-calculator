@@ -2,6 +2,11 @@
 
 Small React + TypeScript single-page app. Calculates dough proportions (flour, water, total weight) for given hydration %. Change any field, other three recompute via reducer.
 
+The app supports multiple **presets** (selectable via a top-level dropdown). Each preset is a self-contained module (own state shape, reducer, form). Currently shipped presets:
+
+- `base` — generic dough calculator (hydration / flour / water / total).
+- `neapolitan` — Neapolitan pizza. Adds poolish (опара), ball weight + servings, salt %.
+
 ## Stack
 
 - React 18
@@ -17,6 +22,7 @@ Small React + TypeScript single-page app. Calculates dough proportions (flour, w
 | `npm run dev` | Dev server (http://localhost:5173) |
 | `npm run build` | Type-check + production build → `dist/` |
 | `npm run preview` | Serve built `dist/` locally |
+| `npm test` | Run Vitest unit tests (currently covers `neapolitan/calc.ts`) |
 
 ## Deployment
 
@@ -34,29 +40,67 @@ tsconfig.app.json            App TS config
 tsconfig.node.json           Vite-config TS config
 src/
   index.tsx                  React root, StrictMode
-  App.tsx                    Layout + StoreContextProvider
-  components/
-    MainForm.tsx             Wraps 4 input fields
-    MainForm/
-      Hydration.tsx          % input
-      FlourWeight.tsx        grams input
-      WaterWeight.tsx        grams input
-      TotalDoughWeight.tsx   grams input
-  contexts/
-    StoreContextProvider.tsx createContext + useReducer
-  reducers/
-    reducer.ts               4 handlers, one per field
-  config/
-    defaultValues.ts         hydration 60, flour 500, water 300, total 800
-  types/
-    interfaces.ts            State, Action union, ActionType enum
+  App.tsx                    Layout + preset dropdown + active preset render
+  presets/
+    types.ts                 Preset interface { id, label, Form }
+    registry.ts              Array of all presets, drives the dropdown
+    base/                    Base preset — current calculator
+      types.ts               State, Action union, ActionType enum
+      defaults.ts            hydration 60, flour 500, water 300, total 800
+      reducer.ts             4 handlers, one per field
+      context.ts             React Context for state/dispatch
+      Form.tsx               Root form: useReducer + Provider + fields
+      fields/
+        Hydration.tsx        % input
+        FlourWeight.tsx      grams input
+        WaterWeight.tsx      grams input
+        TotalDoughWeight.tsx grams input
+      index.ts               Preset export: { id, label, Form }
+    neapolitan/              Neapolitan pizza preset
+      types.ts               Canonical state + actions + view interfaces
+      defaults.ts            70% h, 460g total (2×230g), poolish on (200g @ 100%), salt 2.5%
+      calc.ts                Pure module: derive(state) + apply*Change(state, payload)
+      calc.test.ts           Vitest unit tests for derive + every apply*
+      reducer.ts             Dispatches actions to calc.apply* functions
+      context.ts             React Context (view + dispatch)
+      Form.tsx               Root form, useReducer + Provider, conditional poolish row
+      fields/
+        parseNum.ts          Shared input parser / formatter
+        Hydration.tsx        % overall target
+        FlourWeight.tsx      Fresh flour to add (= totalFlour − poolishFlour)
+        WaterWeight.tsx      Fresh water to add (= totalWater − poolishWater)
+        TotalDoughWeight.tsx Total dough (incl. poolish)
+        BallWeight.tsx       Per-ball weight (independent)
+        Servings.tsx         total / ballWeight, rounded to 0.1, editable
+        SaltPercent.tsx      Editable % of total flour
+        SaltWeight.tsx       Read-only, derived
+        PoolishToggle.tsx    Switch — defaults on
+        PoolishMass.tsx      g, shown when toggle on
+        PoolishHydration.tsx %, shown when toggle on
+      index.ts               Preset export: { id, label, Form }
 public/
   favicons                   (served as-is, copied to dist/)
 .github/workflows/
   deploy.yml                 Build + deploy to GitHub Pages
 ```
 
-## State Model
+## Preset Architecture
+
+`Preset` interface (`src/presets/types.ts`):
+
+```ts
+interface Preset {
+  id: string;
+  label: string;
+  Form: React.FC;   // self-contained; manages own state internally
+}
+```
+
+`App.tsx` reads `presets` from `registry.ts`, renders a Bootstrap `Dropdown` to switch active preset, and mounts the active preset's `Form` keyed by `id` (so state resets cleanly on switch).
+
+Each preset owns its state shape and reducer — no shared global store. When a preset diverges from base, copy `base/` files into the preset folder and edit there.
+
+## State Model (base preset)
 
 `AppStateInterface`:
 - `hydration` — water/flour ratio %
@@ -64,9 +108,9 @@ public/
 - `waterWeight` — grams
 - `totalDoughWeight` — grams (flour + water)
 
-Single store. Held in `StoreContext`. Components read `state` + `dispatch` via `useContext`.
+Held in the preset-local `StoreContext` (`src/presets/base/context.ts`). The preset's `Form.tsx` creates the reducer + provider; field components read `state` + `dispatch` via `useContext`.
 
-## Actions
+## Actions (base preset)
 
 Enum `ActionType`:
 - `ChangeHydration`
@@ -76,7 +120,58 @@ Enum `ActionType`:
 
 Each action carries `payload: number`. Union type `AppActionsInterface`.
 
-## Calculation Rules (reducer.ts)
+## Neapolitan Preset
+
+### Mental model
+
+User has a fixed amount of 100% poolish on hand and wants N pizzas at target hydration. The form answers: "how much fresh flour + water to add?"
+
+### Canonical state (minimal independent fields)
+
+```
+hydration         %      target overall hydration
+total             g      total dough weight (poolish + fresh)
+ballWeight        g      per ball
+saltPercent       %      of total flour
+poolishOn         bool   toggle (defaults true)
+poolishMass       g      kept in state even when off (memory)
+poolishHydration  %      kept in state even when off
+```
+
+### Derived (computed in `calc.derive`)
+
+```
+totalFlour   = total / (1 + hydration/100)
+totalWater   = total − totalFlour
+poolishFlour = poolishOn ? poolishMass / (1 + poolishHydration/100) : 0
+poolishWater = poolishOn ? poolishMass − poolishFlour : 0
+flour        = totalFlour − poolishFlour       // displayed "fresh flour to add"
+water        = totalWater − poolishWater       // displayed "fresh water to add"
+servings     = round(total / ballWeight, 0.1)
+saltWeight   = totalFlour × saltPercent / 100  // does NOT affect total
+```
+
+### Action → invariants
+
+| Action | Fixed | Recomputed (via canonical state) |
+|---|---|---|
+| ChangeHydration (poolish on) | poolishMass, total | totalFlour, totalWater, flour, water |
+| ChangeHydration (poolish off) | totalFlour (= flour) | total, water |
+| ChangeFlour (fresh) | hydration, poolish | total via totalFlour = flour + poolishFlour |
+| ChangeWater (fresh) | hydration, poolish | total via totalWater = water + poolishWater |
+| ChangeTotal | hydration, poolish, ballWeight | flour, water, servings |
+| ChangeBallWeight | total, hydration, poolish | servings only |
+| ChangeServings | hydration, ballWeight, poolish | total = servings × ballWeight |
+| ChangePoolishMass | hydration, total | flour, water (split shifts) |
+| ChangePoolishHydration | hydration, total, poolishMass | flour, water (split shifts) |
+| ChangeSaltPercent | everything else | saltWeight only |
+| TogglePoolish | hydration, total | flour, water; poolishMass/hydration retained in state as memory |
+
+### Why split `calc.ts` from `reducer.ts`
+
+Pure functions, no React imports → directly unit-testable under Vitest. Reducer is a thin switch dispatching to `apply*Change` helpers. Tests live in `calc.test.ts` (23 cases covering defaults, poolish on/off, every action, edge cases like `ballWeight = 0` and `hydration = 0`).
+
+## Calculation Rules (base preset reducer.ts)
 
 Hydration always preserved when possible. Field user touches drives recompute:
 
@@ -100,10 +195,10 @@ Input onChange
 ## Gotchas / Notes
 
 - Inputs typed `text` not `number`. Floats rejected (`Number.isInteger` check). Negative ints pass parse.
-- No persistence. Reload resets to `defaultValues`.
-- Division by zero risk in `handleWaterWeightChanged` when `hydration = 0`.
-- `WaterWeight.tsx` handler misnamed `handleFlourWeightChange` (copy-paste; harmless).
-- No tests. Vitest not yet wired up.
+- No persistence. Reload resets to preset defaults. Switching presets via dropdown also resets state (Form is keyed by preset id).
+- `handleWaterWeightChanged` guards `hydration === 0` (returns flour = 0).
+- Neapolitan preset currently reuses `base/Form` verbatim — only `id`/`label` differ.
+- Vitest wired up. Currently covers Neapolitan `calc.ts`. Base preset reducer not yet covered.
 
 ## Entry Points
 
