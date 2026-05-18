@@ -1,5 +1,8 @@
 # Dough Calculator — Overview
 
+> Looking for what's planned next? See [IMPROVEMENTS.md](IMPROVEMENTS.md) — backlog of features, debt, and polish items.
+
+
 Small React + TypeScript single-page app. Calculates dough proportions (flour, water, total weight) for given hydration %. Change any field, other three recompute via reducer.
 
 The app supports multiple **presets** (selectable via a top-level dropdown). Each preset is a self-contained module (own state shape, reducer, form). Currently shipped presets:
